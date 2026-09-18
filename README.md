@@ -74,6 +74,21 @@ app/
     assets/          # 内置示例 CSV
 ```
 
+
+
+## 预编译 Debug APK
+
+仓库已附带 Debug APK（约 16MB）：
+
+- [`releases/app-debug.apk`](releases/app-debug.apk)
+- 本地副本：`/workspace/ashare-apk/ashare-csv-analyzer-debug.apk`（构建机）
+
+安装：
+
+```bash
+adb install -r releases/app-debug.apk
+```
+
 ## 许可证
 
 MIT
