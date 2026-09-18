@@ -15,6 +15,7 @@ import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
+import java.io.File
 
 enum class AppStep { Import, Analyze, Present }
 
@@ -63,19 +64,24 @@ class AppViewModel(application: Application) : AndroidViewModel(application) {
             try {
                 val stocks = withContext(Dispatchers.IO) {
                     val app = getApplication<Application>()
+                    val cache = File(app.cacheDir, "import_${System.currentTimeMillis()}.csv")
                     try {
-                        app.contentResolver.takePersistableUriPermission(
-                            uri,
-                            android.content.Intent.FLAG_GRANT_READ_URI_PERMISSION,
-                        )
-                    } catch (_: SecurityException) {
-                        // Some providers do not support persistable grants; still try to read once.
+                        // Prefer a one-shot byte copy: avoids OEM URI permission races
+                        // after the document picker returns and the activity resumes.
+                        app.contentResolver.openInputStream(uri)?.use { input ->
+                            cache.outputStream().use { output -> input.copyTo(output) }
+                        } ?: throw IllegalStateException("无法打开所选文件（可能没有读取权限）")
+
+                        if (!cache.exists() || cache.length() == 0L) {
+                            throw IllegalStateException("所选文件为空")
+                        }
+                        CsvParser.parseFile(cache)
+                    } finally {
+                        runCatching { cache.delete() }
                     }
-                    app.contentResolver.openInputStream(uri)?.use { CsvParser.parse(it) }
-                        ?: throw IllegalStateException("无法打开所选文件")
                 }
                 if (stocks.isEmpty()) {
-                    throw IllegalStateException("未解析到有效股票数据，请检查 CSV 格式")
+                    throw IllegalStateException("未解析到有效股票数据，请检查 CSV 格式与编码（UTF-8 / GBK）")
                 }
                 _ui.update {
                     it.copy(
@@ -88,7 +94,10 @@ class AppViewModel(application: Application) : AndroidViewModel(application) {
                 }
             } catch (e: Throwable) {
                 _ui.update {
-                    it.copy(isLoading = false, error = e.message ?: "导入失败")
+                    it.copy(
+                        isLoading = false,
+                        error = (e.message ?: "导入失败") + " (${e.javaClass.simpleName})",
+                    )
                 }
             }
         }
@@ -117,7 +126,10 @@ class AppViewModel(application: Application) : AndroidViewModel(application) {
                 }
             } catch (e: Throwable) {
                 _ui.update {
-                    it.copy(isLoading = false, error = e.message ?: "加载示例失败")
+                    it.copy(
+                        isLoading = false,
+                        error = (e.message ?: "加载示例失败") + " (${e.javaClass.simpleName})",
+                    )
                 }
             }
         }
@@ -140,7 +152,10 @@ class AppViewModel(application: Application) : AndroidViewModel(application) {
                 }
             } catch (e: Throwable) {
                 _ui.update {
-                    it.copy(isLoading = false, error = e.message ?: "分析失败")
+                    it.copy(
+                        isLoading = false,
+                        error = (e.message ?: "分析失败") + " (${e.javaClass.simpleName})",
+                    )
                 }
             }
         }

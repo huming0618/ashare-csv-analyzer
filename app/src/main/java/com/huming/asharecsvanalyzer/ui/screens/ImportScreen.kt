@@ -27,6 +27,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
+import com.huming.asharecsvanalyzer.BuildConfig
 import com.huming.asharecsvanalyzer.UiState
 import com.huming.asharecsvanalyzer.data.Formatters
 
@@ -37,8 +38,9 @@ fun ImportScreen(
     onLoadSample: () -> Unit,
     onContinue: () -> Unit,
 ) {
+    // GetContent is more reliable than OpenDocument on many OEMs for one-shot reads.
     val picker = rememberLauncherForActivityResult(
-        contract = ActivityResultContracts.OpenDocument(),
+        contract = ActivityResultContracts.GetContent(),
     ) { uri ->
         if (uri != null) onPickFile(uri)
     }
@@ -56,13 +58,13 @@ fun ImportScreen(
             fontWeight = FontWeight.Bold,
         )
         Text(
-            text = "选择由 ashare-spot-fetcher 导出的 UTF-8 CSV 文件，或加载内置示例数据。",
+            text = "版本 ${BuildConfig.VERSION_NAME} (${BuildConfig.VERSION_CODE}) · 选择 fetcher 导出的 CSV，或加载内置示例。",
             style = MaterialTheme.typography.bodyMedium,
             color = MaterialTheme.colorScheme.onSurfaceVariant,
         )
 
         Button(
-            onClick = { picker.launch(arrayOf("text/*", "text/csv", "application/csv", "*/*")) },
+            onClick = { picker.launch("*/*") },
             modifier = Modifier.fillMaxWidth(),
             enabled = !state.isLoading,
         ) {
@@ -120,7 +122,7 @@ fun ImportScreen(
                 onClick = onContinue,
                 modifier = Modifier.fillMaxWidth(),
             ) {
-                Text("下一步：分析 →")
+                Text("下一步：分析")
             }
         }
 

@@ -1,14 +1,22 @@
 package com.huming.asharecsvanalyzer.data
 
 import java.io.BufferedReader
+import java.io.File
 import java.io.InputStream
 import java.io.InputStreamReader
 import java.nio.charset.Charset
 
 object CsvParser {
 
-    fun parse(inputStream: InputStream): List<StockRow> {
-        val reader = BufferedReader(InputStreamReader(inputStream, Charset.forName("UTF-8")))
+    fun parseFile(file: File): List<StockRow> {
+        val utf8 = parse(file.inputStream(), Charset.forName("UTF-8"))
+        if (utf8.isNotEmpty()) return utf8
+        // Excel / WeChat exports on Chinese phones often use GBK
+        return parse(file.inputStream(), Charset.forName("GBK"))
+    }
+
+    fun parse(inputStream: InputStream, charset: Charset = Charset.forName("UTF-8")): List<StockRow> {
+        val reader = BufferedReader(InputStreamReader(inputStream, charset))
         val rows = mutableListOf<StockRow>()
         var headerSkipped = false
 
@@ -16,7 +24,6 @@ object CsvParser {
             for (raw in lines) {
                 var line = raw
                 if (!headerSkipped) {
-                    // Strip UTF-8 BOM if present
                     if (line.isNotEmpty() && line[0] == '\uFEFF') {
                         line = line.substring(1)
                     }
