@@ -41,10 +41,10 @@ object CsvParser {
                         volume = cols.getOrElse(10) { "0" }.toLongOrZero(),
                         turnover = cols.getOrElse(11) { "0" }.toDoubleOrZero(),
                         turnoverRatio = cols.getOrElse(12) { "0" }.toDoubleOrZero(),
-                        pe = cols.getOrNull(13)?.toDoubleOrNull(),
-                        pb = cols.getOrNull(14)?.toDoubleOrNull(),
-                        totalMarketCapWan = cols.getOrNull(15)?.toDoubleOrNull(),
-                        floatMarketCapWan = cols.getOrNull(16)?.toDoubleOrNull(),
+                        pe = cols.getOrNull(13)?.parseDoubleOrNull(),
+                        pb = cols.getOrNull(14)?.parseDoubleOrNull(),
+                        totalMarketCapWan = cols.getOrNull(15)?.parseDoubleOrNull(),
+                        floatMarketCapWan = cols.getOrNull(16)?.parseDoubleOrNull(),
                         quoteTime = cols.getOrElse(17) { "" }.trim(),
                         tradeDate = cols.getOrElse(18) { "" }.trim(),
                         source = cols.getOrElse(19) { "" }.trim(),
@@ -87,11 +87,19 @@ object CsvParser {
     }
 
     private fun String.toDoubleOrZero(): Double =
-        trim().replace(",", "").toDoubleOrNull() ?: 0.0
+        parseDoubleOrNull() ?: 0.0
 
     private fun String.toLongOrZero(): Long =
-        trim().replace(",", "").toDoubleOrNull()?.toLong() ?: 0L
+        parseDoubleOrNull()?.toLong() ?: 0L
 
-    private fun String.toDoubleOrNull(): Double? =
-        trim().replace(",", "").toDoubleOrNull()
+    /** Named distinctly so we do not recurse into ourselves (stdlib toDoubleOrNull). */
+    private fun String.parseDoubleOrNull(): Double? {
+        val value = trim().replace(",", "")
+        if (value.isEmpty() || value == "-" || value == "—" ||
+            value.equals("null", true) || value.equals("NaN", true)
+        ) {
+            return null
+        }
+        return value.toDoubleOrNull()
+    }
 }

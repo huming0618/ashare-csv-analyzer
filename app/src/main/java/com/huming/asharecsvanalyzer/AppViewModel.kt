@@ -63,6 +63,14 @@ class AppViewModel(application: Application) : AndroidViewModel(application) {
             try {
                 val stocks = withContext(Dispatchers.IO) {
                     val app = getApplication<Application>()
+                    try {
+                        app.contentResolver.takePersistableUriPermission(
+                            uri,
+                            android.content.Intent.FLAG_GRANT_READ_URI_PERMISSION,
+                        )
+                    } catch (_: SecurityException) {
+                        // Some providers do not support persistable grants; still try to read once.
+                    }
                     app.contentResolver.openInputStream(uri)?.use { CsvParser.parse(it) }
                         ?: throw IllegalStateException("无法打开所选文件")
                 }
@@ -78,7 +86,7 @@ class AppViewModel(application: Application) : AndroidViewModel(application) {
                         step = AppStep.Import,
                     )
                 }
-            } catch (e: Exception) {
+            } catch (e: Throwable) {
                 _ui.update {
                     it.copy(isLoading = false, error = e.message ?: "导入失败")
                 }
@@ -107,7 +115,7 @@ class AppViewModel(application: Application) : AndroidViewModel(application) {
                         step = AppStep.Import,
                     )
                 }
-            } catch (e: Exception) {
+            } catch (e: Throwable) {
                 _ui.update {
                     it.copy(isLoading = false, error = e.message ?: "加载示例失败")
                 }
@@ -123,11 +131,17 @@ class AppViewModel(application: Application) : AndroidViewModel(application) {
         }
         viewModelScope.launch {
             _ui.update { it.copy(isLoading = true, error = null, step = AppStep.Analyze) }
-            val analysis = withContext(Dispatchers.Default) {
-                MarketAnalyzer.analyze(stocks)
-            }
-            _ui.update {
-                it.copy(isLoading = false, analysis = analysis, step = AppStep.Analyze)
+            try {
+                val analysis = withContext(Dispatchers.Default) {
+                    MarketAnalyzer.analyze(stocks)
+                }
+                _ui.update {
+                    it.copy(isLoading = false, analysis = analysis, step = AppStep.Analyze)
+                }
+            } catch (e: Throwable) {
+                _ui.update {
+                    it.copy(isLoading = false, error = e.message ?: "分析失败")
+                }
             }
         }
     }
